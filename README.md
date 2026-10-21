@@ -1,132 +1,692 @@
-# AWS Security Scanner
+# \# AWS Security Scanner
 
-![CI](https://github.com/<your-github-username>/aws-security-scanner/actions/workflows/ci.yml/badge.svg)
-![Python](https://img.shields.io/badge/python-3.10%2B-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
+# 
 
-A Python tool that audits an AWS account for common security misconfigurations, mapped to the **CIS AWS Foundations Benchmark v3.0**. It runs **21 read-only checks** across IAM, S3, EC2, VPC, CloudTrail and GuardDuty, scores the account, and writes an **HTML report, JSON and CSV** with a fix for every finding.
+# !\[CI](https://github.com/Sumanth718/aws-security-scanner/actions/workflows/ci.yml/badge.svg)
 
-It includes a built-in **demo account**, so you can see real output without AWS credentials.
+# !\[Python](https://img.shields.io/badge/python-3.10%2B-blue)
 
-![Sample report](docs/report-screenshot.png)
+# !\[License](https://img.shields.io/badge/license-MIT-green)
 
-## Checks
+# 
 
-| ID | Check | Severity | CIS v3.0 |
-|---|---|---|---|
-| IAM-001 | Root account has MFA enabled | critical | 1.5 |
-| IAM-002 | Root account has no access keys | critical | 1.4 |
-| IAM-003 | Console users have MFA | high | 1.10 |
-| IAM-004 | Active access keys rotated within 90 days | medium | 1.14 |
-| IAM-005 | Password policy (length 14+, reuse prevention 24) | medium | 1.8, 1.9 |
-| IAM-006 | Users get permissions only through groups | medium | 1.15 |
-| IAM-007 | IAM Access Analyzer enabled (per region) | low | 1.20 |
-| S3-001 | Account-level Block Public Access on | high | 2.1.4 |
-| S3-002 | Bucket-level Block Public Access on | high | 2.1.4 |
-| S3-003 | Bucket ACL does not grant public access | critical | |
-| S3-004 | Bucket policy enforces HTTPS | medium | 2.1.1 |
-| S3-005 | Bucket versioning enabled | low | |
-| EC2-001 | No security group exposes SSH/RDP to 0.0.0.0/0 or ::/0 | high | 5.2, 5.3 |
-| EC2-002 | Default security groups have no rules | medium | 5.4 |
-| EC2-003 | EBS encryption by default | medium | 2.2.1 |
-| EC2-004 | Instances require IMDSv2 | medium | 5.6 |
-| VPC-001 | VPC flow logs enabled | medium | 3.7 |
-| CT-001 | A multi-region CloudTrail trail is logging | critical | 3.1 |
-| CT-002 | CloudTrail log file validation | medium | 3.2 |
-| CT-003 | CloudTrail encrypted with KMS | medium | 3.5 |
-| GD-001 | GuardDuty enabled (per region) | high | |
+# A Python-based AWS security auditing tool that identifies common cloud security misconfigurations and maps applicable findings to the \*\*CIS AWS Foundations Benchmark v3.0\*\*.
 
-## Quick start
+# 
 
-```bash
-git clone https://github.com/<your-github-username>/aws-security-scanner.git
-cd aws-security-scanner
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+# The scanner provides 21 read-only security checks across IAM, S3, EC2, VPC, CloudTrail, GuardDuty, and IAM Access Analyzer. It calculates a severity-weighted security score and generates HTML, JSON, and CSV reports with remediation guidance.
 
-# Try it without AWS
-python -m awsscan scan --demo
-```
+# 
 
-```
-Account 111122223333 | regions: eu-west-3, us-east-1
-Security score: 52/100   PASS 23   FAIL 24   ERROR 0
+# \*\*No AWS account or credentials are required to try the built-in demo mode.\*\*
 
-Failed checks (most severe first):
-  [CRIT] IAM-002  global     root                                     Root access keys exist
-  [CRIT] S3-003   global     s3://acme-finance-reports                Public grants: READ
-  [HIGH] EC2-001  eu-west-3  sg-0a11bastion0000003 (bastion)          Open to the internet: 22/SSH
-  [HIGH] EC2-001  us-east-1  sg-0b22legacy00000002 (legacy-windows)   Open to the internet: 3389/RDP
-  [HIGH] GD-001   us-east-1  guardduty/us-east-1                      No detector
-  ...
-Reports written to reports/ (report.html, findings.json, findings.csv)
-```
+# 
 
-Full sample output: [`docs/sample-output/`](docs/sample-output/).
+# \## Table of Contents
 
-## Scanning a real account
+# 
 
-1. Create an IAM role or user with the least-privilege policy in [`iam-policy/awsscan-readonly.json`](iam-policy/awsscan-readonly.json). It only allows read calls. AWS's managed `SecurityAudit` policy also works.
-2. Configure credentials (`aws configure --profile audit` or `aws sso login`).
-3. Run:
+# \- \[Features](#features)
 
-```bash
-python -m awsscan scan --profile audit --regions eu-west-3,us-east-1
-python -m awsscan scan --profile audit --services s3,iam
-python -m awsscan scan --profile audit --fail-on high   # exit code 2 if any high/critical check fails
-python -m awsscan list-checks
-```
+# \- \[Sample Report](#sample-report)
 
-Without `--regions`, every enabled region is scanned. Checks that are denied by IAM are reported as `ERROR` and the rest of the scan continues.
+# \- \[Security Checks](#security-checks)
 
-To run it every week from GitHub Actions without storing AWS keys, see [`examples/scheduled-scan.yml`](examples/scheduled-scan.yml), which uses OIDC to assume a read-only role.
+# \- \[Quick Start](#quick-start)
 
-## Design
+# \- \[Example Output](#example-output)
 
-```mermaid
-flowchart LR
-    CLI[cli.py] --> CTX[ScanContext]
-    CTX -->|boto3 session| AWS[(AWS APIs)]
-    CTX -->|--demo| FAKE[FakeAWS demo account]
-    REG[Check registry] --> SCAN[Scanner]
-    CTX --> SCAN
-    SCAN --> RES[ScanResult + score]
-    RES --> HTML[report.html]
-    RES --> JSON[findings.json]
-    RES --> CSV[findings.csv]
-```
+# \- \[Scanning a Real AWS Account](#scanning-a-real-aws-account)
 
-- **Checks are small generator functions** registered with a decorator that carries the metadata (ID, severity, CIS reference, remediation). Adding a check means writing one function in `awsscan/checks/`.
-- **Checks never import boto3.** They ask a `ScanContext` for clients. In production the context wraps a boto3 session with adaptive retries; in tests and `--demo` it returns fake clients backed by a dictionary. That keeps the test suite fast, offline and free.
-- **Global checks** (IAM, S3, CloudTrail) run once. **Regional checks** (EC2, VPC, GuardDuty, Access Analyzer) run in every scanned region.
-- **The score** is a severity-weighted pass rate: critical counts 10, high 5, medium 3, low 1.
+# \- \[Architecture](#architecture)
 
-Example check:
+# \- \[Testing](#testing)
 
-```python
-@check(id="EC2-003", title="EBS encryption by default is enabled", service="ec2",
-       severity="medium", cis="2.2.1",
-       remediation="aws ec2 enable-ebs-encryption-by-default --region <region>")
-def ebs_default_encryption(ctx, region):
-    enabled = ctx.client("ec2", region).get_ebs_encryption_by_default()["EbsEncryptionByDefault"]
-    yield Result(enabled, f"ebs-default/{region}", "Enabled" if enabled else "Disabled")
-```
+# \- \[Security Considerations and Limitations](#security-considerations-and-limitations)
 
-## Testing
+# \- \[Roadmap](#roadmap)
 
-```bash
-pip install -r requirements-dev.txt
-pytest -v
-```
+# \- \[License](#license)
 
-22 tests cover each check's pass and fail paths, edge cases (port ranges such as 3380-3390 include RDP, inactive keys are ignored, `get_trail_status` must be called in the trail's home region), error handling when a call is denied, the reports and the CLI exit codes. One test records every AWS call made during a full scan and fails if the shipped IAM policy does not allow it.
+# 
 
-## Roadmap
+# \## Features
 
-- More checks: RDS public snapshots, KMS key rotation, Lambda public URLs, unused IAM credentials (credential report)
-- AWS Organizations support to scan every member account by assuming a role
-- Send findings to AWS Security Hub in ASFF format
+# 
 
-## License
+# \- 21 security checks for common AWS configuration risks.
 
-MIT
+# \- CIS AWS Foundations Benchmark v3.0 references where applicable.
+
+# \- Severity levels: critical, high, medium, low, and informational.
+
+# \- Severity-weighted security score.
+
+# \- HTML, JSON, and CSV report generation.
+
+# \- Built-in fake AWS environment for offline demonstrations.
+
+# \- Configurable AWS regions and services.
+
+# \- Read-only AWS API access.
+
+# \- Error isolation so one failed check does not stop the entire scan.
+
+# \- Automated linting and testing through GitHub Actions.
+
+# \- Optional scheduled scans using GitHub Actions and AWS OIDC.
+
+# 
+
+# \## Sample Report
+
+# 
+
+# The HTML report presents security findings, severity levels, affected resources, and remediation guidance.
+
+# 
+
+# !\[Sample AWS security report](docs/report-screenshot.png)
+
+# 
+
+# If the screenshot is not available yet, add it to `docs/report-screenshot.png` or remove this image reference until the screenshot is ready.
+
+# 
+
+# \## Security Checks
+
+# 
+
+# \### Identity and Access Management (IAM)
+
+# 
+
+# | ID | Check | Severity | CIS Reference |
+
+# |---|---|---|---|
+
+# | IAM-001 | Root account has MFA enabled | Critical | 1.5 |
+
+# | IAM-002 | Root account has no access keys | Critical | 1.4 |
+
+# | IAM-003 | Console users have MFA | High | 1.10 |
+
+# | IAM-004 | Active access keys rotated within 90 days | Medium | 1.14 |
+
+# | IAM-005 | Password policy meets configured requirements | Medium | 1.8, 1.9 |
+
+# | IAM-006 | Users receive permissions through groups | Medium | 1.15 |
+
+# | IAM-007 | IAM Access Analyzer enabled | Low | 1.20 |
+
+# 
+
+# \### Simple Storage Service (S3)
+
+# 
+
+# | ID | Check | Severity | CIS Reference |
+
+# |---|---|---|---|
+
+# | S3-001 | Account-level Block Public Access enabled | High | 2.1.4 |
+
+# | S3-002 | Bucket-level Block Public Access enabled | High | 2.1.4 |
+
+# | S3-003 | Bucket ACL does not grant public access | Critical | — |
+
+# | S3-004 | Bucket policy enforces HTTPS | Medium | 2.1.1 |
+
+# | S3-005 | Bucket versioning enabled | Low | — |
+
+# 
+
+# \### Elastic Compute Cloud (EC2)
+
+# 
+
+# | ID | Check | Severity | CIS Reference |
+
+# |---|---|---|---|
+
+# | EC2-001 | Security groups do not expose SSH/RDP to the internet | High | 5.2, 5.3 |
+
+# | EC2-002 | Default security groups have no rules | Medium | 5.4 |
+
+# | EC2-003 | EBS encryption by default enabled | Medium | 2.2.1 |
+
+# | EC2-004 | Instances require IMDSv2 | Medium | 5.6 |
+
+# 
+
+# \### Virtual Private Cloud (VPC)
+
+# 
+
+# | ID | Check | Severity | CIS Reference |
+
+# |---|---|---|---|
+
+# | VPC-001 | VPC flow logs enabled | Medium | 3.7 |
+
+# 
+
+# \### CloudTrail
+
+# 
+
+# | ID | Check | Severity | CIS Reference |
+
+# |---|---|---|---|
+
+# | CT-001 | Multi-region CloudTrail trail is logging | Critical | 3.1 |
+
+# | CT-002 | CloudTrail log file validation enabled | Medium | 3.2 |
+
+# | CT-003 | CloudTrail encrypted with KMS | Medium | 3.5 |
+
+# 
+
+# \### GuardDuty
+
+# 
+
+# | ID | Check | Severity | CIS Reference |
+
+# |---|---|---|---|
+
+# | GD-001 | GuardDuty enabled | High | — |
+
+# 
+
+# \*\*Note:\*\* CIS references are provided where applicable. Verify the precise benchmark version, recommendation IDs, and applicability before using the findings for a formal compliance assessment.
+
+# 
+
+# \## Quick Start
+
+# 
+
+# \### 1. Clone the repository
+
+# 
+
+# ```bash
+
+# git clone https://github.com/Sumanth718/aws-security-scanner.git
+
+# cd aws-security-scanner
+
+# ```
+
+# 
+
+# \### 2. Create a virtual environment
+
+# 
+
+# \*\*Windows PowerShell:\*\*
+
+# 
+
+# ```powershell
+
+# python -m venv .venv
+
+# .venv\\Scripts\\Activate.ps1
+
+# ```
+
+# 
+
+# \*\*macOS or Linux:\*\*
+
+# 
+
+# ```bash
+
+# python -m venv .venv
+
+# source .venv/bin/activate
+
+# ```
+
+# 
+
+# \### 3. Install dependencies
+
+# 
+
+# ```bash
+
+# python -m pip install -r requirements.txt
+
+# ```
+
+# 
+
+# \### 4. Run the demo scan
+
+# 
+
+# ```bash
+
+# python -m awsscan scan --demo
+
+# ```
+
+# 
+
+# The demo uses fake AWS clients and does not require AWS credentials.
+
+# 
+
+# Generated reports are written to the configured output directory. The default is `reports/` if that is how the CLI is configured.
+
+# 
+
+# To list available checks:
+
+# 
+
+# ```bash
+
+# python -m awsscan list-checks
+
+# ```
+
+# 
+
+# \## Example Output
+
+# 
+
+# The following is illustrative demo output. Actual scores, findings, and resource identifiers depend on the demo implementation and selected checks.
+
+# 
+
+# ```text
+
+# Account: demo account
+
+# Security score: calculated by the scanner
+
+# 
+
+# Failed checks:
+
+# &#x20; \[CRIT] IAM-002  Root access keys exist
+
+# &#x20; \[CRIT] S3-003   Public grants detected
+
+# &#x20; \[HIGH] EC2-001  SSH or RDP exposed to the internet
+
+# &#x20; \[HIGH] GD-001   GuardDuty detector not enabled
+
+# 
+
+# Reports:
+
+# &#x20; report.html
+
+# &#x20; findings.json
+
+# &#x20; findings.csv
+
+# ```
+
+# 
+
+# The demo's account identifiers and resources are simulated. They do not represent a real AWS account.
+
+# 
+
+# \## Scanning a Real AWS Account
+
+# 
+
+# \*\*Important:\*\* Start with the demo mode before configuring access to a real account.
+
+# 
+
+# \### 1. Configure read-only permissions
+
+# 
+
+# Use the project's policy:
+
+# 
+
+# \[`iam-policy/awsscan-readonly.json`](iam-policy/awsscan-readonly.json)
+
+# 
+
+# Alternatively, AWS provides the managed `SecurityAudit` policy, which may grant additional permissions beyond those required by this scanner.
+
+# 
+
+# Review all permissions and account policies before scanning. Use a dedicated audit role and grant only the permissions necessary for your intended checks.
+
+# 
+
+# \### 2. Configure AWS credentials
+
+# 
+
+# Install and configure the AWS CLI if needed.
+
+# 
+
+# Using a named profile:
+
+# 
+
+# ```bash
+
+# aws configure --profile audit
+
+# ```
+
+# 
+
+# If your organization uses AWS IAM Identity Center:
+
+# 
+
+# ```bash
+
+# aws sso login --profile audit
+
+# ```
+
+# 
+
+# Never commit access keys, secret keys, session tokens, or private credential files to GitHub.
+
+# 
+
+# \### 3. Run the scanner
+
+# 
+
+# Scan selected regions:
+
+# 
+
+# ```bash
+
+# python -m awsscan scan --profile audit --regions eu-west-3,us-east-1
+
+# ```
+
+# 
+
+# Scan selected services:
+
+# 
+
+# ```bash
+
+# python -m awsscan scan --profile audit --services s3,iam
+
+# ```
+
+# 
+
+# Fail the command when high-severity findings are detected:
+
+# 
+
+# ```bash
+
+# python -m awsscan scan --profile audit --fail-on high
+
+# ```
+
+# 
+
+# List all available checks:
+
+# 
+
+# ```bash
+
+# python -m awsscan list-checks
+
+# ```
+
+# 
+
+# Use `python -m awsscan scan --help` to see the supported CLI options.
+
+# 
+
+# If a required AWS API call is denied, the scanner may record an error for that check while continuing with other checks. Review the resulting report to distinguish actual findings from checks that could not be completed.
+
+# 
+
+# \### Scheduled Scanning
+
+# 
+
+# An optional scheduled workflow is available at:
+
+# 
+
+# \[`examples/scheduled-scan.yml`](examples/scheduled-scan.yml)
+
+# 
+
+# It is designed to use GitHub Actions and AWS OIDC to assume an AWS role without storing long-lived AWS access keys in GitHub secrets.
+
+# 
+
+# Before enabling it, configure the required GitHub settings and AWS trust policy, and review the workflow permissions.
+
+# 
+
+# \## Architecture
+
+# 
+
+# ```mermaid
+
+# flowchart LR
+
+# &#x20;   CLI\[CLI] --> CTX\[ScanContext]
+
+# &#x20;   CTX -->|AWS session| AWS\[(AWS APIs)]
+
+# &#x20;   CTX -->|Demo mode| FAKE\[Fake AWS clients]
+
+# &#x20;   REG\[Check registry] --> SCAN\[Scanner]
+
+# &#x20;   CTX --> SCAN
+
+# &#x20;   SCAN --> RES\[Findings and security score]
+
+# &#x20;   RES --> HTML\[HTML report]
+
+# &#x20;   RES --> JSON\[JSON report]
+
+# &#x20;   RES --> CSV\[CSV report]
+
+# ```
+
+# 
+
+# \### Design Principles
+
+# 
+
+# \- \*\*Centralized scanning:\*\* The scanner executes registered checks and collects their findings.
+
+# \- \*\*Shared context:\*\* Checks obtain AWS clients through `ScanContext`, keeping AWS access separate from check logic.
+
+# \- \*\*Testability:\*\* Fake AWS clients support repeatable offline tests without real AWS resources.
+
+# \- \*\*Error isolation:\*\* Failures in individual checks are recorded instead of automatically terminating the entire scan.
+
+# \- \*\*Actionable findings:\*\* Findings include severity and remediation information.
+
+# \- \*\*Multiple output formats:\*\* HTML, JSON, and CSV reports support both human review and further processing.
+
+# 
+
+# \### Adding a Check
+
+# 
+
+# Checks are registered with metadata such as an identifier, title, service, severity, CIS reference, and remediation instructions.
+
+# 
+
+# The following is an illustrative example. Confirm that the decorator, result class, and function signatures match the current implementation before using it.
+
+# 
+
+# ```python
+
+# @check(
+
+# &#x20;   id="EC2-003",
+
+# &#x20;   title="EBS encryption by default is enabled",
+
+# &#x20;   service="ec2",
+
+# &#x20;   severity="medium",
+
+# &#x20;   cis="2.2.1",
+
+# &#x20;   remediation="Enable EBS encryption by default in the affected region.",
+
+# )
+
+# def ebs\_default\_encryption(ctx, region):
+
+# &#x20;   enabled = ctx.client(
+
+# &#x20;       "ec2", region
+
+# &#x20;   ).get\_ebs\_encryption\_by\_default()\["EbsEncryptionByDefault"]
+
+# 
+
+# &#x20;   yield Result(
+
+# &#x20;       enabled,
+
+# &#x20;       f"ebs-default/{region}",
+
+# &#x20;       "Enabled" if enabled else "Disabled",
+
+# &#x20;   )
+
+# ```
+
+# 
+
+# \## Testing
+
+# 
+
+# Install development dependencies:
+
+# 
+
+# ```bash
+
+# python -m pip install -r requirements-dev.txt
+
+# ```
+
+# 
+
+# Run the test suite:
+
+# 
+
+# ```bash
+
+# python -m pytest -v
+
+# ```
+
+# 
+
+# Run Ruff lint checks:
+
+# 
+
+# ```bash
+
+# python -m ruff check .
+
+# ```
+
+# 
+
+# The test suite covers scanner behavior, filtering, reporting, CLI behavior, error handling, and IAM policy coverage.
+
+# 
+
+# GitHub Actions runs automated checks for Python 3.10 and Python 3.12.
+
+# 
+
+# See the \[GitHub Actions workflow](https://github.com/Sumanth718/aws-security-scanner/actions) for the latest results.
+
+# 
+
+# \## Security Considerations and Limitations
+
+# 
+
+# \- The scanner is a security auditing aid, not a guarantee that an AWS account is secure.
+
+# \- It does not automatically remediate findings.
+
+# \- A read-only role is recommended for real-account scans.
+
+# \- Checks may report errors when permissions, services, or regional configurations prevent inspection.
+
+# \- Passing a check does not prove that every related security control is correctly configured.
+
+# \- Validate findings against current AWS documentation and the applicable CIS benchmark.
+
+# \- Do not commit real AWS credentials or sensitive account information.
+
+# \- Review the IAM policy and GitHub Actions permissions before using the scanner in production.
+
+# 
+
+# \## Roadmap
+
+# 
+
+# Potential future improvements include:
+
+# 
+
+# \- RDS public snapshot checks.
+
+# \- KMS key rotation checks.
+
+# \- Lambda public URL checks.
+
+# \- Detection of unused IAM credentials.
+
+# \- AWS Organizations multi-account scanning.
+
+# \- AWS Security Hub findings integration using ASFF.
+
+# 
+
+# \## License
+
+# 
+
+# This project is distributed under the MIT License. See \[`LICENSE`](LICENSE).
+

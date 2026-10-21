@@ -99,8 +99,11 @@ def write_html(result: ScanResult, path: Path) -> None:
         "<meta name='viewport' content='width=device-width,initial-scale=1'>",
         f"<title>AWS Security Report {esc(result.account_id)}</title><style>{_CSS}</style></head><body><main>",
         "<h1>AWS Security Posture Report</h1>",
-        f"<p class='sub'>Account {esc(result.account_id)} &middot; Regions: {esc(', '.join(result.regions))} "
-        f"&middot; Scanned {result.started_at:%Y-%m-%d %H:%M} UTC</p>",
+        (
+    f"<p class='sub'>Account {esc(result.account_id)} &middot; Regions: "
+    f"{esc(', '.join(result.regions))} "
+    f"&middot; Scanned {result.started_at:%Y-%m-%d %H:%M} UTC</p>"
+),
         "<div class='tiles'>",
         *[f"<div class='tile'><b>{esc(v)}</b><span>{esc(label)}</span></div>" for v, label in tiles],
         "</div>",

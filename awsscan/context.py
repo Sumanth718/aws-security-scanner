@@ -6,8 +6,9 @@ makes them easy to test with fake clients and to run against a demo account.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator
 from datetime import datetime, timezone
-from typing import Any, Callable, Iterator
+from typing import Any
 
 ClientFactory = Callable[[str, str], Any]
 

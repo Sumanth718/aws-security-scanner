@@ -6,7 +6,8 @@ context (and the region for regional checks) and yields ``Result`` tuples.
 
 from __future__ import annotations
 
-from typing import Callable, Iterable, NamedTuple
+from collections.abc import Callable, Iterable
+from typing import NamedTuple
 
 from .models import CheckMeta
 

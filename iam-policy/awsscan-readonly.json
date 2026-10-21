@@ -1,0 +1,37 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AwsScanReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "access-analyzer:ListAnalyzers",
+        "cloudtrail:DescribeTrails",
+        "cloudtrail:GetTrailStatus",
+        "ec2:DescribeFlowLogs",
+        "ec2:DescribeInstances",
+        "ec2:DescribeRegions",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeVpcs",
+        "ec2:GetEbsEncryptionByDefault",
+        "guardduty:GetDetector",
+        "guardduty:ListDetectors",
+        "iam:GetAccountPasswordPolicy",
+        "iam:GetAccountSummary",
+        "iam:GetLoginProfile",
+        "iam:ListAccessKeys",
+        "iam:ListAttachedUserPolicies",
+        "iam:ListMFADevices",
+        "iam:ListUserPolicies",
+        "iam:ListUsers",
+        "s3:GetAccountPublicAccessBlock",
+        "s3:GetBucketAcl",
+        "s3:GetBucketPolicy",
+        "s3:GetBucketPublicAccessBlock",
+        "s3:GetBucketVersioning",
+        "s3:ListAllMyBuckets"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

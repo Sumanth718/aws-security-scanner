@@ -1,0 +1,48 @@
+check_id,title,service,severity,status,region,resource,details,cis
+CT-001,A multi-region CloudTrail trail is logging,cloudtrail,critical,PASS,global,account/111122223333,Logging: org-trail,3.1
+CT-002,CloudTrail log file validation is enabled,cloudtrail,medium,FAIL,global,trail/org-trail,Disabled,3.2
+CT-003,CloudTrail logs are encrypted with KMS,cloudtrail,medium,FAIL,global,trail/org-trail,Using default S3 encryption,3.5
+EC2-001,No security group allows admin ports from the internet,ec2,high,PASS,eu-west-3,sg-0a11default0000001 (default),No admin ports open,"5.2, 5.3"
+EC2-001,No security group allows admin ports from the internet,ec2,high,PASS,eu-west-3,sg-0a11web00000000002 (web-alb),No admin ports open,"5.2, 5.3"
+EC2-001,No security group allows admin ports from the internet,ec2,high,FAIL,eu-west-3,sg-0a11bastion0000003 (bastion),Open to the internet: 22/SSH,"5.2, 5.3"
+EC2-001,No security group allows admin ports from the internet,ec2,high,PASS,us-east-1,sg-0b22default0000001 (default),No admin ports open,"5.2, 5.3"
+EC2-001,No security group allows admin ports from the internet,ec2,high,FAIL,us-east-1,sg-0b22legacy00000002 (legacy-windows),Open to the internet: 3389/RDP,"5.2, 5.3"
+EC2-002,Default security groups restrict all traffic,ec2,medium,PASS,eu-west-3,sg-0a11default0000001 (vpc-0paris00000000001),No rules,5.4
+EC2-002,Default security groups restrict all traffic,ec2,medium,FAIL,us-east-1,sg-0b22default0000001 (vpc-0virginia0000001),2 rule(s) present,5.4
+EC2-003,EBS encryption by default is enabled,ec2,medium,PASS,eu-west-3,ebs-default/eu-west-3,Enabled,2.2.1
+EC2-003,EBS encryption by default is enabled,ec2,medium,FAIL,us-east-1,ebs-default/us-east-1,Disabled,2.2.1
+EC2-004,Instances require IMDSv2,ec2,medium,PASS,eu-west-3,i-0paris0web00000001,HttpTokens=required,5.6
+EC2-004,Instances require IMDSv2,ec2,medium,FAIL,eu-west-3,i-0paris0bastion0002,HttpTokens=optional,5.6
+EC2-004,Instances require IMDSv2,ec2,medium,FAIL,us-east-1,i-0virginia0legacy01,HttpTokens=optional,5.6
+GD-001,GuardDuty is enabled,guardduty,high,PASS,eu-west-3,guardduty/eu-west-3,Enabled,-
+GD-001,GuardDuty is enabled,guardduty,high,FAIL,us-east-1,guardduty/us-east-1,No detector,-
+IAM-001,Root account has MFA enabled,iam,critical,PASS,global,root,MFA is enabled,1.5
+IAM-002,Root account has no access keys,iam,critical,FAIL,global,root,Root access keys exist,1.4
+IAM-003,IAM users with console access have MFA,iam,high,PASS,global,user/alice,MFA device assigned,1.10
+IAM-003,IAM users with console access have MFA,iam,high,FAIL,global,user/bob,Console password without MFA,1.10
+IAM-003,IAM users with console access have MFA,iam,high,PASS,global,user/carol,MFA device assigned,1.10
+IAM-004,Active access keys are rotated within 90 days,iam,medium,PASS,global,user/alice/AKIAEXAMPLEALICE0001,Key is 32 days old,1.14
+IAM-004,Active access keys are rotated within 90 days,iam,medium,FAIL,global,user/bob/AKIAEXAMPLEBOB000002,Key is 214 days old,1.14
+IAM-004,Active access keys are rotated within 90 days,iam,medium,FAIL,global,user/ci-deployer/AKIAEXAMPLECI0000003,Key is 402 days old,1.14
+IAM-005,Password policy meets CIS requirements,iam,medium,FAIL,global,account-password-policy,minimum length 8 < 14; reuse prevention 0 < 24,"1.8, 1.9"
+IAM-006,IAM users receive permissions only through groups,iam,medium,PASS,global,user/alice,No user-level policies,1.15
+IAM-006,IAM users receive permissions only through groups,iam,medium,FAIL,global,user/bob,attached: AdministratorAccess; user has full administrator access,1.15
+IAM-006,IAM users receive permissions only through groups,iam,medium,FAIL,global,user/ci-deployer,inline: deploy-to-s3,1.15
+IAM-006,IAM users receive permissions only through groups,iam,medium,PASS,global,user/carol,No user-level policies,1.15
+IAM-007,IAM Access Analyzer is enabled,accessanalyzer,low,PASS,eu-west-3,analyzer/eu-west-3,Active: account-analyzer,1.20
+IAM-007,IAM Access Analyzer is enabled,accessanalyzer,low,FAIL,us-east-1,analyzer/us-east-1,No active analyzer in this region,1.20
+S3-001,Account-level S3 Block Public Access is on,s3,high,FAIL,global,account/111122223333,Not configured,2.1.4
+S3-002,Bucket-level Block Public Access is on,s3,high,PASS,global,s3://acme-cloudtrail-logs,All four settings enabled,2.1.4
+S3-002,Bucket-level Block Public Access is on,s3,high,FAIL,global,s3://acme-web-assets,Disabled: BlockPublicPolicy,2.1.4
+S3-002,Bucket-level Block Public Access is on,s3,high,FAIL,global,s3://acme-finance-reports,Block Public Access is not configured,2.1.4
+S3-003,Bucket ACL does not grant public access,s3,critical,PASS,global,s3://acme-cloudtrail-logs,No public grants,-
+S3-003,Bucket ACL does not grant public access,s3,critical,PASS,global,s3://acme-web-assets,No public grants,-
+S3-003,Bucket ACL does not grant public access,s3,critical,FAIL,global,s3://acme-finance-reports,Public grants: READ,-
+S3-004,Bucket policy enforces HTTPS,s3,medium,PASS,global,s3://acme-cloudtrail-logs,Policy denies non-TLS requests,2.1.1
+S3-004,Bucket policy enforces HTTPS,s3,medium,PASS,global,s3://acme-web-assets,Policy denies non-TLS requests,2.1.1
+S3-004,Bucket policy enforces HTTPS,s3,medium,FAIL,global,s3://acme-finance-reports,"No bucket policy, HTTP requests are allowed",2.1.1
+S3-005,Bucket versioning is enabled,s3,low,PASS,global,s3://acme-cloudtrail-logs,Versioning: Enabled,-
+S3-005,Bucket versioning is enabled,s3,low,PASS,global,s3://acme-web-assets,Versioning: Enabled,-
+S3-005,Bucket versioning is enabled,s3,low,FAIL,global,s3://acme-finance-reports,Versioning: Suspended,-
+VPC-001,VPC flow logs are enabled,ec2,medium,PASS,eu-west-3,vpc-0paris00000000001,Flow logs active,3.7
+VPC-001,VPC flow logs are enabled,ec2,medium,FAIL,us-east-1,vpc-0virginia0000001,No flow logs,3.7
